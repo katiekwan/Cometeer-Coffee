@@ -1,4 +1,4 @@
-# Cometeeer's The Great American Coffee Tasting Analysis
+# Cometeer's The Great American Coffee Tasting Analysis
 
 This shiny app is was prepared in R. The app provides:
 - Participant demographics as reactive plots
