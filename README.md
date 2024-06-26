@@ -11,3 +11,9 @@ This shiny app is was prepared and developed in R. The app provides:
 - A segmentation tool that shows consumer preferences by segment
 
 The information was procured from [Kaggle](https://www.kaggle.com/datasets/joebeachcapital/coffee-taste-test/data). 
+
+In this repo, you can find:
+- app.R: R file for the Shiny App
+- global.R: R file for global Shiny App Environment
+- coffee.Rmd: R notebook for data prep and additional analysis
+- Cometeer Coffee Presentation
