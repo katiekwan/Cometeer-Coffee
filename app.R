@@ -16,9 +16,12 @@ library(tidyverse)
 library(ggplot2)
 library(ggwordcloud)
 library(stringr)
+library(scales)
 thematic::thematic_shiny(font = "auto")
 
+survey = read.csv('Cometeer Survey - Sheet1.csv')
 coffee_cleaning = read.csv('coffee_cleaning.csv')
+coffee_cleaning$'no detail' = 1
 master_word_cloud = read.csv('master_word_cloud.csv')
 
 results = coffee_cleaning %>% 
@@ -39,11 +42,13 @@ results = coffee_cleaning %>%
 # Define UI for application that draws a histogram
 ui <- navbarPage(
   theme = bs_theme(
-    bg = "#EDE7DD",
+    bg = 'white',
+    #bg = "#EDE7DD",
     fg = "#5E17EB",
-    primary = "#347D16",
+    primary = "#AAF386",
     secondary = '#ABFF78',
     heading_font = font_google("Lilita One"),
+    #heading_font = font_google("Tex Gyre Bonum"),
     base_font = font_google("Urbanist"),
     code_font = font_google("Urbanist")
   ),
@@ -82,26 +87,59 @@ tabPanel("The Great Coffee Tasting ",
          )
 ),
 
+#SURVEY RESULTS
+tabPanel("Survey Questions",
+         fluidPage(
+           style = "padding-bottom: 20px;padding-left: 50px;",
+           HTML("<h1><div style='font-size: 32px;'>Survey Questions
+                       </div></h1>"),
+           
+           fluidRow(column(5,
+                           tableOutput("survey")
+                           
+           ),
+           
+           )
+         )
+),
+
 #PARTICIPANTS TAB
 tabPanel("Participants",
          fluidPage(
            fluidRow(style = "padding-bottom: 20px;padding-left: 20px;",
                     column(4, varSelectInput(
                       "pivotX", "Characteristic",
-                      coffee_cleaning[c('age', 'cups', 'where_drink', 'brew',
-                                        'purchase', 'favorite', 'coffee_black',
-                                        'gender', 'ethnicity_race','most_paid')],
+                      coffee_cleaning[c('age', 'gender', 'ethnicity_race',
+                                        'where_drink', 'brew', 'purchase',
+                                        'cups', 'favorite', 'coffee_black',
+                                        'total_spend', 'most_paid', 'style',
+                                        'most_willing', 'value_cafe',
+                                        'spent_equipment', 'value_equipment',
+                                        'education_level', 'wfh'
+                                        
+                                        )],
                       selected = ""
                     ),
                     ),
                     column(4, varSelectInput(
                       "pivotZ", "Detail",
-                      coffee_cleaning[c('gender', 'age', 'cups',
-                                        'favorite', 'coffee_black',
-                                        'ethnicity_race','most_paid')],
+                      coffee_cleaning[c('no detail', 
+                                        'age', 'gender', 'ethnicity_race',
+                                        'cups', 'favorite', 'coffee_black',
+                                        'total_spend', 'most_paid', 'style',
+                                        'most_willing', 'value_cafe',
+                                        'spent_equipment', 'value_equipment',
+                                        'education_level', 'wfh')],
                       selected = ""
                     ), 
                     ),
+                    selectInput(
+                      "pivot_view",
+                      "View values as:",
+                      c('percentages' = "stack",
+                        'relative percentages' = 'fill'
+                        )
+                    )
            ),
            fluidRow(
              plotOutput('pivot_plot', height = "500px")
@@ -136,7 +174,7 @@ tabPanel(
              )),
       
       column(5,
-             tableOutput("summary1"),),
+             tableOutput("summary_metrics"),),
       column(
         6,
         HTML("<div style='font-size: 18px;'>Tasting Scores</div>"),
@@ -166,20 +204,20 @@ tabPanel("Coffee Comparisons",
              column(
                3,
                varSelectInput("results_viewer", "Evaluate Results by:",
-                              coffee_cleaning[c('age',
-                                                'cups',
-                                                'favorite',
-                                                'coffee_black',
-                                                'style',
-                                                'strength',
-                                                'roast_level')],)
+                              coffee_cleaning[c('age', 'gender', 'ethnicity_race',
+                                                'cups', 'favorite', 'coffee_black',
+                                                'total_spend', 'most_paid', 'style',
+                                                'most_willing', 'value_cafe', 'roast_level',
+                                                'spent_equipment', 'value_equipment',
+                                                'education_level', 'wfh')],)
              ),
              column(3,
                     selectInput(
                       "position",
                       "View bars: (for last three tabs)",
                       c('stacked' = 'stack',
-                        'side by side' = 'dodge')
+                        'side by side' = 'dodge',
+                        'relative percentage' = 'fill')
                     )),
              # Output: Tabset w/ plot, summary, and table ----
              tabsetPanel(
@@ -232,6 +270,7 @@ tabPanel("Segment Builder",
                  'ethnicity_race',
                  'most_paid',
                  'style',
+                 'total_spend',
                  'strength',
                  'roast_level'
                )],
@@ -246,6 +285,7 @@ tabPanel("Segment Builder",
                                         'ethnicity_race',
                                         'most_paid',
                                         'style',
+                                        'total_spend',
                                         'strength',
                                         'roast_level'
                                       )])),
@@ -327,7 +367,9 @@ server <- function(input, output, session) {
     
   })
   
+  
   output$pivot_plot <- renderPlot({
+    
     coffee_cleaning %>%
       separate(
         !!input$pivotX,
@@ -344,12 +386,15 @@ server <- function(input, output, session) {
       ggplot(aes(x, y = ..count.. / (sum(
         !is.na(coffee_cleaning %>% select(!!input$pivotX))
       )))) +
-      geom_bar(aes(fill = !!input$pivotZ)) +
+      geom_bar(aes(fill = !!input$pivotZ), position = input$pivot_view) +
       scale_y_continuous(labels = scales::percent_format()) +
       labs(y = 'Percent Respondents', x = NULL) +
       guides(x = guide_axis(n.dodge = 1, angle = 320)) +
       geom_text(
-        aes(label = ..count..),
+        aes(label = percent(..count../sum(!is.na(
+            coffee_cleaning %>% select(!!input$pivotX)
+          )), accuracy = 1)
+        ),
         stat = "count",
         vjust = -.5,
         colour = "black"
@@ -358,6 +403,9 @@ server <- function(input, output, session) {
         "text",
         x = Inf,
         y = Inf,
+        #label = paste("Total sample size:", sum(!is.na(
+         # coffee_cleaning %>% select(!!input$pivotX)
+        #))),
         label = paste("Total sample size:", sum(!is.na(
           coffee_cleaning %>% select(!!input$pivotX)
         ))),
@@ -527,7 +575,7 @@ server <- function(input, output, session) {
       scale_y_continuous(labels = scales::percent_format()) +
       labs(y = 'Percent Respondents', x = NULL) +
       geom_text(
-        aes(label = ..count..),
+        aes(label = percent(..count../3798, accuracy = 1)),
         stat = "count",
         vjust = -.5,
         colour = "black"
@@ -557,7 +605,7 @@ server <- function(input, output, session) {
       scale_y_continuous(labels = scales::percent_format()) +
       labs(y = 'Percent Respondents', x = NULL) +
       geom_text(
-        aes(label = ..count..),
+        aes(label = percent(..count../3798, accuracy = 1)),
         stat = "count",
         vjust = -.5,
         colour = "black"
@@ -587,7 +635,7 @@ server <- function(input, output, session) {
       scale_y_continuous(labels = scales::percent_format()) +
       labs(y = 'Percent Respondents', x = NULL) +
       geom_text(
-        aes(label = ..count..),
+        aes(label = percent(..count../3798, accuracy = 1)),
         stat = "count",
         vjust = -.5,
         colour = "black"
@@ -666,7 +714,7 @@ server <- function(input, output, session) {
     
   })
   
-  output$summary1 <- renderTable({
+  output$summary_metrics <- renderTable({
     as.data.frame(summary(coffee_cleaning %>%
                             select(contains(
                               paste0('_', tolower(input$type), '_')
@@ -674,10 +722,10 @@ server <- function(input, output, session) {
       select(Var2, Freq) %>%
       rename(Characteristic = Var2) %>%
       filter(str_detect(Freq, 'Mean'))
-    
-    
-    
-    
+  })
+  
+  output$survey <- renderTable({
+    survey
   })
   
   output$table <- DT::renderDataTable({

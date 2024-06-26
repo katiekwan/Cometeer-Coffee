@@ -1,0 +1,1295 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+```{r}
+
+library(dplyr)
+library(tidyverse)
+library(ggplot2)
+library(ggwordcloud)
+library(stringr)
+
+```
+
+```{r}
+coffee_raw = read.csv('coffee_survey.csv')
+```
+
+```{r}
+#EDA
+
+summary(coffee_raw)
+length(coffee_raw) #57 columns
+nrow(coffee_raw) #4042 rows
+cat('df shape ',dim(coffee_raw)) #4042
+coffee_raw %>% #num NAs
+  summarise(across(everything(), ~ sum(is.na(.))))
+```
+
+
+```{r}
+
+#Dropping rows with no information and all who did not participate in the survey. 
+coffee_cleaning = coffee_raw %>%
+filter(rowSums(is.na(coffee_raw))!=55 & rowSums(is.na(coffee_raw))!=56)
+coffee_cleaning = coffee_cleaning %>%
+  filter(!is.na(coffee_a_bitterness))
+dim(coffee_cleaning) #3798
+coffee_cleaning
+
+#Factorizing
+coffee_cleaning$cups = as.factor(coffee_cleaning$cups)
+coffee_cleaning$age = as.factor(coffee_cleaning$age)
+coffee_cleaning$favorite = as.factor(coffee_cleaning$favorite)
+coffee_cleaning$style = as.factor(coffee_cleaning$style)
+coffee_cleaning$strength = as.factor(coffee_cleaning$strength)
+coffee_cleaning$roast_level = as.factor(coffee_cleaning$roast_level)
+coffee_cleaning$caffeine = as.factor(coffee_cleaning$caffeine)
+coffee_cleaning$prefer_abc = as.factor(coffee_cleaning$prefer_abc)
+coffee_cleaning$prefer_overall = as.factor(coffee_cleaning$prefer_overall)
+coffee_cleaning$wfh = as.factor(coffee_cleaning$wfh)
+coffee_cleaning$total_spend = as.factor(coffee_cleaning$total_spend)
+coffee_cleaning$most_paid = as.factor(coffee_cleaning$most_paid)
+coffee_cleaning$most_willing = as.factor(coffee_cleaning$most_willing)
+coffee_cleaning$value_cafe = as.factor(coffee_cleaning$value_cafe)
+coffee_cleaning$spent_equipment = as.factor(coffee_cleaning$spent_equipment)
+coffee_cleaning$value_equipment = as.factor(coffee_cleaning$value_equipment)
+coffee_cleaning$gender = as.factor(coffee_cleaning$gender)
+coffee_cleaning$education_level = as.factor(coffee_cleaning$education_level)
+coffee_cleaning$ethnicity_race = as.factor(coffee_cleaning$ethnicity_race)
+coffee_cleaning$number_children = as.factor(coffee_cleaning$number_children)
+
+
+# Feature Engineering, Home and Additions
+coffee_cleaning = coffee_cleaning %>% mutate(cafe = if_else(str_detect(where_drink, "cafe"), "Cafe", "No"),
+                           go = if_else(str_detect(where_drink, "go"), "On the go", "No"),
+                           home = if_else(str_detect(where_drink, "home"), "Home", "No"),
+                           office = if_else(str_detect(where_drink, "office"), "Office", "No"),
+                           no_place = if_else(str_detect(where_drink, "cafe"), "None", "No"),
+                           pour_over = if_else(str_detect(brew, "Pour"), "Pour over", "No"),
+                           french_press = if_else(str_detect(brew, "French"), "French press", "No"),
+                           espresso = if_else(str_detect(brew, "Espresso"), "Espresso", "No"),
+                           brewer = if_else(str_detect(brew, "Mr."), "Drip Brewer", "No"),
+                           pod = if_else(str_detect(brew, "Nespresso"), "Pod", "No"),
+                           instant = if_else(str_detect(brew, "Instant"), "Instant", "No"),
+                           bean_cup = if_else(str_detect(brew, "Bean"), "Bean to Cup Machine", "No"),
+                           extract = if_else(str_detect(brew, "Cometeer"), "Extract, like Cometeer", "No"),
+                           cold_brew = if_else(str_detect(brew, "Cold"), "Cold brew", "No"),
+                           other_brew = if_else(str_detect(brew, "Other"), "Other", "No"),
+                           other_loc = if_else(str_detect(purchase, "Other"), "Other", "No"),
+                           drive_thru = if_else(str_detect(purchase, "Drive"), "Drive Thru", "No"),
+                           local_cafe = if_else(str_detect(purchase, "Local"), "Local cafe", "No"),
+                           deli = if_else(str_detect(purchase, "Deli"), "Deli", "No"),
+                           specialty = if_else(str_detect(purchase, "Specialty"), "Speciality Cafe", "No"),
+                           chain = if_else(str_detect(purchase, "Dunkin"), "Chain", "No"))
+
+coffee_cleaning = coffee_cleaning %>% mutate(coffee_black = if_else(str_detect(additions, "just"), "Black", "Milk/Sugar"))
+
+#Capitalize column names
+#coffee_cleaning <- coffee_cleaning %>% rename_with(~ str_to_title(.))
+#coffee_cleaning
+coffee_cleaning
+
+write.csv(coffee_cleaning, "heh/coffee_cleaning.csv", row.names = FALSE)
+```
+```{r}
+#Regular base r plot for testing
+coffee_cleaning %>% 
+  ggplot(aes(age)) +
+  geom_bar()
+
+```
+
+```{r} 
+
+#PIVOT FOR TESTING
+
+coffee_cleaning %>%
+  separate(where_drink, sep=',', fill = 'right', into = c('x1','x2','x3','x4','x5','x6', 'x7','x8','x9','x10'
+                                                   ), remove = TRUE) %>%
+  pivot_longer(
+    cols = x1:x10,
+    names_to = 'list',
+    values_to = 'x') %>%
+  filter(!is.na(x)) %>%
+  mutate(x = str_trim(x)) %>%
+  #ggplot(aes(x, y = ..count../sum(..count..))) +
+  ggplot(aes(x, y = ..count../(sum(!is.na(coffee_cleaning$where_drink))))) +
+  geom_bar(aes(fill = wfh)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents',
+       title = '') +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", sum(!is.na(coffee_cleaning$purchase))), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+#PIVOT FOR PRODUCTION - don't run here
+coffee_cleaning %>%
+      separate(!!input$pivotX, sep=',', fill = 'right', into = c('x1','x2','x3','x4','x5','x6', 'x7','x8','x9','x10'
+      ), remove = TRUE) %>%
+      pivot_longer(
+        cols = x1:x10,
+        names_to = 'list',
+        values_to = 'x') %>%
+      filter(!is.na(x)) %>%
+      mutate(x = str_trim(x)) %>%
+      ggplot(aes(x, y = ..count../(sum(!is.na(coffee_cleaning%>%select(!!input$pivotX)))))) +
+      geom_bar(aes(fill = !!input$pivotZ)) +
+      scale_y_continuous(labels = scales::percent_format()) +
+      labs(y = 'Percent Respondents', x = NULL) +
+      guides(x = guide_axis(n.dodge=1, angle = 320)) +
+      geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+      annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", sum(!is.na(coffee_cleaning%>%select(!!input$pivotX)))), 
+               hjust = 1.1, vjust = 2, size = 6, color = "black") +
+      theme(axis.text.x = element_text(size = 12),
+            axis.text.y = element_text(size = 12),
+            axis.title.x = element_text(size = 14, face = 'bold'),
+            axis.title.y = element_text(size = 14, face = 'bold'))
+```
+
+```{r}
+library(scales)
+scales::percent_format(.44)
+percent(.44)
+
+# SIMPLE FOR TESTING
+
+coffee_cleaning %>% 
+  ggplot(aes(roast_level,y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = favorite)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents',
+       title = 'Comparisons') +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", sum(!is.na(coffee_cleaning$Age))), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+
+#SIMPLE FOR PRODUCTION - don't run
+
+output$simple_plot <- renderPlot({
+    coffee_cleaning %>% 
+      ggplot(aes(!!input$simpleX, y = ..count../sum(..count..))) +
+      geom_bar(aes(fill = !!input$simpleZ)) +
+      scale_y_continuous(labels = scales::percent_format()) +
+      labs(y = 'Percent Respondents', x = NULL) + 
+      guides(x = guide_axis(n.dodge=1, angle = 320)) +
+      geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+      annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", sum(!is.na(coffee_cleaning%>%select(!!input$simpleX)))), 
+          hjust = 1.1, vjust = 2, size = 6, color = "black") +
+      theme(axis.text.x = element_text(size = 12),
+            axis.text.y = element_text(size = 12),
+            axis.title.x = element_text(size = 14, face = 'bold'),
+            axis.title.y = element_text(size = 14, face = 'bold'))
+```
+```{r}
+
+#RESULT DETAILS PAGE PRODUCTION
+
+#DF IN GLOBAL.R
+results = coffee_cleaning %>%
+  pivot_longer(cols = c(coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference,
+                        coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference,
+                        coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference,
+                        coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference),
+               values_to = 'score',
+               names_to = 'metric') %>%
+  mutate(type = case_when(
+    str_detect(metric, "coffee_a") ~ "A",
+    str_detect(metric, "coffee_b") ~ "B",
+    str_detect(metric, "coffee_c") ~ "C",
+    str_detect(metric, "coffee_d") ~ "D",
+  ))
+
+# FOR APP.R               
+results %>%
+  filter(type == 'A') %>%
+  ggplot() +
+  geom_density(aes(score, color = metric), binwidth = 1, adjust = 4) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents',
+       title = 'Tasting Scores') +
+  #guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", #sum(!is.na(coffee_dropped$Age))), 
+           nrow(results %>%
+  filter((type == 'A') & (str_detect(metric, "acidity"))) %>%
+  group_by(submission_id) %>%
+  summarise(n()))),
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+
+```
+
+```{r}
+
+#WORK CLOUD FOR TESTING
+
+#Making a smaller DF
+master_word_cloud = rbind(
+  
+coffee_cleaning %>%
+  select(submission_id, coffee_a_notes) %>%
+  filter(!is.na(coffee_a_notes)) %>%
+  mutate(coffee_a_notes = str_replace_all(coffee_a_notes, "[<>.*]", " ")) %>%
+  separate_wider_delim(col = coffee_a_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  mutate(words = str_replace(words, ",", "")) %>%
+  mutate(words = tolower(words)) %>%
+  count(words, name = 'count') %>%
+  filter((count > 5) & (count < 100)) %>%
+  filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
+  mutate(Type = 'A'),
+
+#B Word Clooud
+coffee_cleaning %>%
+  select(submission_id, coffee_b_notes) %>%
+  filter(!is.na(coffee_b_notes)) %>%
+  mutate(coffee_b_notes = str_replace_all(coffee_b_notes, "[<>.*]", " ")) %>%
+  separate_wider_delim(col = coffee_b_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  mutate(words = str_replace(words, ",", "")) %>%
+  mutate(words = tolower(words)) %>%
+  count(words, name = 'count') %>%
+  filter((count > 5) & (count < 100)) %>%
+  filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
+  mutate(Type = 'B'),
+
+#C word cloud
+coffee_cleaning %>%
+  select(submission_id, coffee_c_notes) %>%
+  filter(!is.na(coffee_c_notes)) %>%
+  mutate(coffee_c_notes = str_replace_all(coffee_c_notes, "[<>.*]", " ")) %>%
+  separate_wider_delim(col = coffee_c_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  mutate(words = str_replace(words, ",", "")) %>%
+  mutate(words = tolower(words)) %>%
+  count(words, name = 'count') %>%
+  filter((count > 5) & (count < 100)) %>%
+  filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
+  mutate(Type = 'C'),
+
+#D wordcloud
+coffee_cleaning %>%
+  select(submission_id, coffee_d_notes) %>%
+  filter(!is.na(coffee_d_notes)) %>%
+  mutate(coffee_d_notes = str_replace_all(coffee_d_notes, "[<>.*]", " ")) %>%
+  separate_wider_delim(col = coffee_d_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  mutate(words = str_replace(words, ",", "")) %>%
+  mutate(words = tolower(words)) %>%
+  count(words, name = 'count') %>%
+  filter((count > 5) & (count < 100)) %>%
+  filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
+  mutate(Type = 'D')
+)
+
+write.csv(master_word_cloud, "heh/master_word_cloud.csv", row.names = FALSE)
+
+master_word_cloud %>%
+      filter(Type == 'B') %>%
+      ggplot(aes(label = words, size = count, color = count)) +
+      geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+      scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+      theme_minimal() +
+      scale_color_gradient(low = "darkred", high = "red")
+      
+
+  
+```
+
+```{r}
+#HEAD TO HEAD SCORE
+
+coffee_cleaning %>%
+  pivot_longer( cols = ends_with('preference'),
+                values_to = 'Scores',
+                names_to = 'Coffee_choice') %>%
+  ggplot(aes(x = Coffee_choice)) +
+  stat_summary(aes(y = Scores, fill = caffeine), 
+               position = 'dodge', na.rm = TRUE, fun = "mean", geom = "bar") + 
+  scale_x_discrete(labels = c("coffee_a_personal_preference" = "Coffee A", 
+                              "coffee_b_personal_preference" = "Coffee B", 
+                              "coffee_c_personal_preference" = "Coffee C",
+                              "coffee_d_personal_preference" = "Coffee D")) +
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, face = 'bold'),
+        axis.title.y = element_text(size = 14, face = 'bold'))
+  
+```
+
+```{r}
+
+#PREFER ABC
+
+coffee_cleaning %>%
+  ggplot(aes(prefer_abc,y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = age), position = 'stack') +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents', x = NULL) + 
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", 3798), 
+          hjust = 1.1, vjust = 2, size = 6, color = "black") + 
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, face = 'bold'),
+        axis.title.y = element_text(size = 14, face = 'bold'))
+```
+
+```{r}
+#PREFER A OR D
+
+coffee_cleaning %>%
+  ggplot(aes(prefer_ad, y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = age), position = 'stack') +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents', x = NULL) + 
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", 3798), 
+          hjust = 1.1, vjust = 2, size = 6, color = "black") + 
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, face = 'bold'),
+        axis.title.y = element_text(size = 14, face = 'bold'))
+```
+```{r}
+
+#PREFER OVERALL
+
+coffee_cleaning %>%
+  ggplot(aes(prefer_overall, y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = age), position = 'stack') +
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(y = 'Percent Respondents', x = NULL) + 
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", 3798), 
+          hjust = 1.1, vjust = 2, size = 6, color = "black") + 
+  theme(axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        axis.title.x = element_text(size = 14, face = 'bold'),
+        axis.title.y = element_text(size = 14, face = 'bold'))
+
+```
+
+```{r}
+ #SUMMARY SCORES
+
+coffee_cleaning %>%
+  pivot_longer( cols = c(ends_with('bitterness'), ends_with('preference')),
+                values_to = 'Scores',
+                names_to = 'Coffee_choice') %>%
+  mutate(Type = if_else(str_detect(Coffee_choice, "_a"), "A",
+                if_else(str_detect(Coffee_choice, "_b"), "B",
+                if_else(str_detect(Coffee_choice, "_c"), "C",
+                if_else(str_detect(Coffee_choice, "_d"), "D", "E"))))) %>%
+  filter(Type == 'A') %>%
+  select(Scores)
+
+as.data.frame(summary(coffee_cleaning %>%
+  select(contains(paste0('_',tolower(st),'_'))))) %>%
+  select(Var2,Freq) %>%
+  rename(Characteristic = Var2) %>%
+  filter(str_detect(Freq,'Mean'))
+  
+  pivot_wider(names_from = Var2,
+              values_from = Freq
+              )
+  
+
+st = 'A'
+tolower(st)
+paste0('_',tolower(st),'_')
+```
+```{r}
+
+#SEGMENTER
+coffee_cleaning %>%
+  #filter((!is.na(age)) & (!is.na(favorite))) %>%
+  ggplot(aes(age, gender)) +
+  stat_summary_2d(aes(z = coffee_a_personal_preference), fun = 'mean', bins = 30) +
+  geom_count() +
+  scale_fill_viridis_c() +
+  guides(x = guide_axis(n.dodge=1, angle = 320))
+
+
+#MEANS
+coffee_cleaning %>%
+  select(ends_with('preference')) %>%
+  summarise(Coffee_A = mean(coffee_a_personal_preference, na.rm = TRUE),
+            Coffee_B = mean(coffee_b_personal_preference, na.rm = TRUE),
+            Coffee_C = mean(coffee_c_personal_preference, na.rm = TRUE),
+            Coffee_D = mean(coffee_d_personal_preference, na.rm = TRUE)
+            )
+            
+            
+            
+            
+```
+```{r}
+
+#SEGMENT + PIVOT
+coffee_cleaning %>%
+  separate(age, sep=',', fill = 'right', into = c('x1','x2','x3','x4','x5','x6', 'x7','x8','x9','x10'
+                                                   ), remove = TRUE) %>%
+  pivot_longer(
+    cols = x1:x10,
+    names_to = 'list',
+    values_to = 'x') %>%
+  filter(!is.na(x)) %>%
+  mutate(x = str_trim(x)) %>%
+  ggplot(aes(x, coffee_black)) +
+  stat_summary_2d(aes(z = coffee_a_personal_preference), fun = 'mean', bins = 30) +
+  geom_count() +
+  scale_fill_viridis_c() +
+  guides(x = guide_axis(n.dodge=1, angle = 320))
+
+```
+
+```{r}
+#Except NULL for F Test, variances are similiar
+var.test(coffee_cleaning$coffee_b_personal_preference, coffee_cleaning$coffee_c_personal_preference, alternative = "two.sided")[3] #p = 0.4149961
+
+t.test(coffee_cleaning$coffee_b_personal_preference, coffee_cleaning$coffee_c_personal_preference, alternative = "two.sided")[3] #p=.9
+
+var.test(coffee_cleaning$coffee_b_acidity, coffee_cleaning$coffee_c_acidity, alternative = "two.sided") [3] #p = 0.0001
+
+t.test(coffee_cleaning$coffee_b_acidity, coffee_cleaning$coffee_c_acidity, alternative = "two.sided")[3] #p=3.87529e-12
+
+var.test(coffee_cleaning$coffee_b_bitterness, coffee_cleaning$coffee_c_bitterness, alternative = "two.sided") [3] #p = 0.7
+
+t.test(coffee_cleaning$coffee_b_bitterness, coffee_cleaning$coffee_c_bitterness, alternative = "two.sided")[3] #p=.009
+
+cor.test(coffee_cleaning$coffee_b_acidity, coffee_cleaning$coffee_b_personal_preference) #p=.015
+```
+```{r}
+
+
+mlm = inner_join(inner_join(
+coffee_cleaning %>%
+  select(submission_id,ends_with('acidity')) %>%
+  pivot_longer(cols = ends_with('acidity'), names_to = "type", values_to = "acidity") %>%
+  separate(type, c('type') , '_acidity'),
+coffee_cleaning %>%
+  select(submission_id,ends_with('bitterness')) %>%
+  pivot_longer(cols = ends_with('bitterness'), names_to = "type", values_to = "bitterness") %>%
+  separate(type, c('type') , '_bitterness'),
+by = c("submission_id", 'type')),
+coffee_cleaning %>%
+  select(submission_id,ends_with('preference')) %>%
+  pivot_longer(cols = ends_with('preference'), names_to = "type", values_to = "preference") %>%
+  separate(type, c('type') , '_personal_preference'),
+by = c("submission_id", 'type')
+)
+
+#
+mlm %>%
+  ggplot(aes(acidity, preference)) +
+  geom_density2d_filled(adjust = 2, contour_var = 'count')
+  
+
+mlm %>%
+  ggplot(aes(bitterness, preference)) +
+  geom_density2d_filled(adjust = 2, contour_var = 'count')
+  
+  
+cor.test(mlm$acidity, mlm$preference)
+cor.test(mlm$bitterness, mlm$preference)
+
+
+`````````
+```{r}
+corr_bit = inner_join(
+coffee_cleaning %>%
+  select(submission_id,ends_with('bitterness')) %>%
+  pivot_longer(cols = ends_with('bitterness'), names_to = "type", values_to = "bitterness") %>%
+  separate(type, c('type') , '_bitterness'),
+coffee_cleaning %>%
+  select(submission_id,ends_with('preference')) %>%
+  pivot_longer(cols = ends_with('preference'), names_to = "type", values_to = "preference") %>%
+  separate(type, c('type') , '_personal_preference'),
+by = c("submission_id", 'type')
+)
+corr_bit
+cor.test(corr_bit$bitterness, corr_bit$preference)
+
+
+is.na(corr_bit)
+```
+```{r}
+coffee_cleaning %>%
+  select(starts_with('coffee') & !ends_with('notes')) %>%
+  summarise_all(mean, na.rm = TRUE) %>%
+  pivot_longer(cols = everything(), names_to = 'names', values_to = 'values')
+    
+  )
+```
+```{r}
+#6 oz - 10 grams, 340g
+ratio = 10/6*8
+ratio
+340/ratio
+#25 cups of coffee per bag
+18/25
+```
+
+
+```{r}
+summary(model) #Many predictor variables are not significant, yet the
+                         #overall regression is significant.
+
+plot(model) #Assessing the assumptions of the model.
+
+library(car) #Companion to applied regression.
+influencePlot(model)
+
+vif(model) #Assessing the variance inflation factors for the variables
+                     #in our model.
+
+#Added variable plots for assessing the contribution of each additional variable.
+avPlots(model) #Distinct patterns are indications of good contributions
+                         
+#to the model; absent patterns usually are pointers to
+                         #variables that could be dropped from the model.
+
+
+```
+
+Old Code
+
+
+
+
+```{r}
+#Dropping submission that are missing 56 or 55 inputs. 
+
+coffee_dropped = coffee_raw %>%
+filter(rowSums(is.na(coffee_raw))!=55 & rowSums(is.na(coffee_raw))!=56)
+
+# Total Participants
+dim(coffee_dropped) #4010
+cat('participants of survey ', dim(coffee_dropped)[1]) 
+
+# Participants of the tasting
+yes_tasting = coffee_dropped %>%
+  filter(!is.na(coffee_a_bitterness))
+cat('participants of tasting ', dim(yes_tasting)[1]) #3798
+
+# NOT Participants of the tasting
+no_tasting = coffee_dropped %>%
+  filter(is.na(coffee_a_bitterness))
+cat('participants of tasting ', dim(no_tasting)[1]) #244
+no_tasting_id = no_tasting$submission_id
+no_tasting_id
+
+
+```
+```{r}
+coffee_dropped$survey = ifelse(!is.na(coffee_dropped$coffee_a_bitterness), 'tasting was completed', 'tasting NOT completed') 
+coffee_dropped$cups = factor(coffee_dropped$cups, levels = c("Less than 1", "1", "2", "3", "4", "More than 4","NA"))
+coffee_dropped <- coffee_dropped %>% rename_with(~ str_to_title(.))
+
+
+coffee_dropped %>% 
+  ggplot(aes(age,y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = survey)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  #geom_bar() +
+  labs(y = 'Percent Respondents',
+       title = 'Ages of Respondents') +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", nrow(coffee_dropped)), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+```
+```{r}
+plot(coffee_dropped$age)
+```
+
+```{r}
+coffee_dropped %>% 
+  ggplot(aes(age)) +
+  geom_bar(aes(fill = survey)) +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  geom_text(aes(label = round(..count../sum(..count..),2)), stat = "count", colour = "black") +
+  guides(x = guide_axis(n.dodge=1, angle = 320))
+
+
+```
+
+
+```{r}
+coffee_dropped %>% 
+  ggplot(aes(gender, y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = age)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  labs(x = "Gender", y = "Percent Respondents", title = "Coffee Cups per Day") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", nrow(coffee_dropped)), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+long %>%
+  ggplot(aes(gender, y = ..count../sum(..count..))) +
+  geom_bar(aes(fill = age)) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  #geom_text(aes(label = ..count..), stat = "count", vjust = -.5, colour = "black") +
+  guides(x = guide_axis(n.dodge=1, angle = 320)) +
+  labs(x = "Gender", y = "Percent Respondents", title = "Coffee Cups per Day") #+
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", nrow(coffee_dropped)), 
+          hjust = 1.1, vjust = 2, size = 4, color = "black")
+```
+```{r}
+coffee_dropped %>%
+  #select(submission_id, age, where_drink) %>%
+  separate(Where_drink, sep=',', fill = 'right', into = c('where1','where2','where3','where4','where5','where6'
+                                                   ), remove = TRUE) %>%
+  pivot_longer(
+    cols = where1:where6,
+    names_to = 'list',
+    values_to = 'brew_where') %>%
+  select(age,brew_where) %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  filter(!is.na(brew_where)) %>%
+  ggplot(aes(brew_where)) +
+  geom_bar(aes(fill = Age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed")
+
+#WITH TWO EXPANSIONS
+
+coffee_dropped %>%
+  #select(submission_id, age, where_drink) %>%
+  separate(where_drink, sep=',', fill = 'right', into = c('where1','where2','where3','where4','where5','where6'
+                                                   ), remove = TRUE) %>%
+  pivot_longer(
+    cols = where1:where6,
+    names_to = 'list',
+    values_to = 'brew_where') %>%
+  select(age,brew_where) %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  filter(!is.na(brew_where)) %>%
+  ggplot(aes(brew_where)) +
+  geom_bar(aes(fill = age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed")
+
+
+long = coffee_dropped %>%
+  #select(submission_id, age, where_drink) %>%
+  separate(where_drink, sep=',', fill = 'right', into = c('where1','where2','where3','where4','where5','where6'
+                                                   ), remove = TRUE) %>%
+  separate(brew, sep=',', fill = 'right', into = c('brew1','brew2','brew3','brew4','brew5','brew6',
+                                                   'brew7','brew8','brew9','brew10'), remove = TRUE) %>%
+  pivot_longer(
+    cols = where1:where6,
+    names_to = 'list',
+    values_to = 'brew_where') %>%
+  pivot_longer(
+    cols = brew1:brew10,
+    names_to = 'brewct',
+    values_to = 'brew_type')
+
+#WORKING 1 expansion
+long %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  filter(!is.na(brew_where)) %>%
+  ggplot(aes(age)) +
+  geom_bar(aes(fill = brew_where)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", 
+                                                   sum(!is.na(coffee_dropped$where_drink))), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+#WORKING 2 expansion
+long %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  mutate(brew_type = str_trim(brew_type))%>%
+  filter((!is.na(brew_where)) & (!is.na(brew_type))) %>%
+  ggplot(aes(brew_type)) +
+  geom_bar(aes(fill = brew_where)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed") +
+  annotate("text", x = Inf, y = Inf, label = paste("Total sample size:", 
+                                                   sum(!is.na(coffee_dropped$where_drink))), 
+           hjust = 1.1, vjust = 2, size = 4, color = "black")
+
+
+
+long %>%
+  group_by(submission_id) %>%
+  summarise(n()) %>%
+  count()
+
+coffee_dropped %>%
+  select(Submission_id, Age, Where_drink) %>%
+  separate(Where_drink, sep=',', fill = 'right', into = c('where1','where2','where3','where4','where5','where6'
+                                                   ), remove = TRUE) %>%
+  pivot_longer(
+    cols = where1:where6,
+    names_to = 'list',
+    values_to = 'brew_where') #%>%
+  select(Age,brew_where) %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  filter(!is.na(brew_where)) %>%
+  ggplot(aes(Age)) +
+  geom_bar(aes(fill = brew_where)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed")
+
+
+#Num of respondents
+sum(!is.na(coffee_dropped$where_drink))
+
+```
+```{r}
+
+coffee_dropped %>%
+  select(submission_id, age, where_drink) %>%
+  separate(where_drink, sep=',', fill = 'right', 
+           into = c('where1','where2','where3','where4','where5','where6'), remove = TRUE) %>%
+pivot_longer(
+    cols = where1:where6,
+    names_to = 'list',
+    values_to = 'brew_where') %>%
+  select(age,brew_where) %>%
+  mutate(brew_where = str_trim(brew_where))%>%
+  filter(!is.na(brew_where)) %>%
+  ggplot(aes(age)) +
+  geom_bar(position = 'fill',aes(fill = brew_where)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Where Coffee is Imbibed")
+```
+
+
+
+```{r}
+coffee_dropped %>%
+  select(submission_id, age, brew, brew_other) %>%
+  separate(brew, sep=',', fill = 'right', into = c('brew1','brew2','brew3','brew4','brew5','brew6',
+                                                   'brew7','brew8','brew9','brew10'), remove = TRUE) %>%
+  pivot_longer(
+    cols = brew1:brew10,
+    names_to = 'brewct',
+    values_to = 'brew_type') %>%
+  select(age,brew_type) %>%
+  mutate(brew_type = str_trim(brew_type))%>%
+  filter(!is.na(brew_type)) %>%
+  ggplot(aes(brew_type)) +
+  geom_bar(aes(fill = age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(x = "Types of Methods", y = "Number of Respondents", title = "Brew Methods")
+```
+```{r}
+coffee_dropped %>%
+  select(submission_id, age, purchase) %>%
+  separate(purchase, sep=',', fill = 'right', 
+           into = c('purchase1','purchase2','purchase3','purchase4','purchase5','purchase6'), remove = TRUE) %>%
+  pivot_longer(
+    cols = purchase1:purchase6,
+    names_to = 'purchasect',
+    values_to = 'purchase_type') %>%
+  select(age,purchase_type) %>%
+  mutate(brew_type = str_trim(purchase_type))%>%
+  filter(!is.na(purchase_type)) %>%
+  ggplot(aes(purchase_type)) +
+  geom_bar(aes(fill = age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Purchase Methods")
+```
+```{r}
+coffee_dropped %>%
+  select(age,favorite) %>%
+  ggplot(aes(favorite)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  geom_bar(aes(fill = age))
+
+coffee_dropped %>%
+  select(age,favorite) %>%
+  ggplot(aes(age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  geom_bar(position = 'fill', aes(fill = favorite))
+```
+```{r}
+#MILK REVISIT
+
+coffee_dropped %>%
+  select(submission_id, age, additions) %>%
+  separate(additions, sep='r,', fill = 'right', 
+           into = c('additions1','additions2','additions3'), remove = FALSE)
+  
+  
+  
+  pivot_longer(
+    cols = purchase1:purchase6,
+    names_to = 'purchasect',
+    values_to = 'purchase_type') %>%
+  select(age,purchase_type) %>%
+  mutate(brew_type = str_trim(purchase_type))%>%
+  filter(!is.na(purchase_type)) %>%
+  ggplot(aes(purchase_type)) +
+  geom_bar(aes(fill = age)) +
+  guides(x = guide_axis(n.dodge=1, angle = 330)) +
+  labs(y = "Number of Respondents", title = "Purchase Methods")
+```
+```{r}
+yes_tasting %>%
+  select(submission_id, coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference,
+         coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference,
+         coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference,
+         coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference) %>%
+  mutate(across(1:12, as.numeric))
+```
+
+
+```{r}
+#COFFEE A
+
+#Density Plot
+yes_tasting %>%
+  select(coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference) %>%
+  mutate(across(1:3, as.numeric)) %>%
+  pivot_longer(cols = starts_with('coffee'), names_to = 'Characteristic', values_to = 'Rating') %>%
+  ggplot(aes(x = Rating)) +
+  geom_density(aes(Rating, color = Characteristic), binwidth = 1, adjust = 4)
+
+#Dot Plot
+yes_tasting %>%
+  select(coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference, coffee_a_notes) %>%
+  ggplot(aes(coffee_a_acidity,coffee_a_bitterness)) +
+  geom_count() +
+  labs(x = "Acidity", y = "Bitterness", title = "Coffee A Metrics")
+
+#Contour Plot
+yes_tasting %>%
+  select(coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference, coffee_a_notes) %>%
+  ggplot(aes(coffee_a_acidity,coffee_a_bitterness)) +
+  geom_contour_filled(aes(z = coffee_a_personal_preference)) +
+  labs(x = "Acidity", y = "Bitterness", z = "Preference Rating", title = "Coffee A Metrics")
+
+#class(yes_tasting$coffee_a_acidity[1])
+```
+```{r}
+
+
+
+
+
+#HMMM
+geom_density(aes(coffee_a_bitterness, color = 'darkgoldenrod'), binwidth = 1, adjust = 4) +
+  geom_density(aes(coffee_a_personal_preference, color = 'aquamarine3'), binwidth = 1, adjust = 4) +
+  geom_density(aes(coffee_a_acidity, color = 'red'), kernel = "gaussian") +
+  geom_density(aes(coffee_a_bitterness, color = 'blue')) +
+  geom_density(aes(coffee_a_personal_preference))
+```
+
+```{r}
+
+#B Word Cloud
+
+yes_tasting$coffee_a_notes = gsub("\\p{P}",'',yes_tasting$coffee_a_notes, perl = TRUE)
+yes_tasting$coffee_a_notes = tolower(yes_tasting$coffee_a_notes)
+
+
+head(yes_tasting,100) %>%
+  select(submission_id, coffee_a_notes) %>%
+  filter(!is.na(coffee_a_notes)) %>%
+  separate_wider_delim(col = coffee_a_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  count(words, name = 'count') %>%
+  filter(words %in% c("a", "i", "4", "3rd", "bit", "and", "it", "b") == FALSE) %>%
+  ggplot(aes(label = words, size = count, color = count)) +
+  geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+  scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+  theme_minimal() +
+  scale_color_gradient(low = "darkred", high = "red")
+
+```
+```{r}
+head(yes_tasting,1000) %>%
+  select(submission_id, coffee_a_notes) %>%
+  filter(!is.na(coffee_a_notes)) %>%
+  mutate(coffee_a_notes = str_replace_all(coffee_a_notes, "[<>.*]", " ")) #%>%
+  separate_wider_delim(col = coffee_a_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") 
+
+head(yes_tasting,1000) %>%
+  select(submission_id, coffee_a_notes) %>%
+  filter(!is.na(coffee_a_notes)) %>%
+  separate_wider_regex(col = coffee_a_notes, 
+                       c(var1 = ".*?", "_", var2 = ".*"),
+                       too_few = "debug")
+                       
+```
+
+
+```{r}
+#A Test passed
+#B Test passed
+#C Test passed
+#D Test passed
+coffee_cleaning %>%
+  select(submission_id, coffee_d_notes) %>%
+  filter(!is.na(coffee_d_notes)) %>%
+  mutate(coffee_d_notes = str_replace_all(coffee_d_notes, "[<>.*]", " ")) %>%
+  separate_wider_delim(col = coffee_d_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  mutate(words = str_replace(words, ",", "")) %>%
+  mutate(words = tolower(words)) %>%
+  count(words, name = 'count') %>%
+  filter((count > 5) & (count < 100)) %>%
+  filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
+  ggplot(aes(label = words, size = count, color = count)) +
+  geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+  scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+  theme_minimal() +
+  scale_color_gradient(low = "darkred", high = "red")
+
+```
+```{r}
+
+
+```
+
+```{r}
+#COFFEE B
+
+#Dot Plot
+yes_tasting %>%
+  select(coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference, coffee_b_notes) %>%
+  ggplot(aes(coffee_b_acidity,coffee_b_bitterness)) +
+  geom_count() +
+  labs(x = "Acidity", y = "Bitterness", title = "Coffee B Metrics")
+
+#Contour Plot
+yes_tasting %>%
+  select(coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference, coffee_b_notes) %>%
+  ggplot(aes(coffee_b_acidity,coffee_b_bitterness)) +
+  geom_contour_filled(aes(z = coffee_b_personal_preference)) +
+  labs(x = "Acidity", y = "Bitterness", z = "Preference Rating", title = "Coffee B Metrics")
+
+  #Density Plot
+yes_tasting %>%
+  select(coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference) %>%
+  mutate(across(1:3, as.numeric)) %>%
+  pivot_longer(cols = starts_with('coffee'), names_to = 'Characteristic', values_to = 'Rating') %>%
+  ggplot(aes(x = Rating)) +
+  geom_density(aes(Rating, color = Characteristic), binwidth = 1, adjust = 4)
+```
+```{r}
+
+#B Word Cloud
+
+yes_tasting$coffee_b_notes = gsub("\\p{P}",'',yes_tasting$coffee_b_notes, perl = TRUE)
+yes_tasting$coffee_b_notes = tolower(yes_tasting$coffee_b_notes)
+
+
+head(yes_tasting,100) %>%
+  select(submission_id, coffee_b_notes) %>%
+  filter(!is.na(coffee_b_notes)) %>%
+  separate_wider_delim(col = coffee_b_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  count(words, name = 'count') %>%
+  filter(words %in% c("a", "i", "4", "3rd", "but", "it", "b") == FALSE) %>%
+  ggplot(aes(label = words, size = count, color = count)) +
+  geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+  scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+  theme_minimal() +
+  scale_color_gradient(low = "brown", high = "black")
+
+
+```
+
+
+```{r}
+#COFFEE C
+
+#Dot Plot
+yes_tasting %>%
+  select(coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference, coffee_c_notes) %>%
+  ggplot(aes(coffee_c_acidity,coffee_c_bitterness)) +
+  geom_count() +
+  labs(x = "Acidity", y = "Bitterness", title = "Coffee C Metrics")
+
+#Countour Plot
+yes_tasting %>%
+  select(coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference, coffee_c_notes) %>%
+  ggplot(aes(coffee_c_acidity,coffee_c_bitterness)) +
+  geom_contour_filled(aes(z = coffee_c_personal_preference)) +
+  labs(x = "Acidity", y = "Bitterness", z = "Preference Rating", title = "Coffee C Metrics")
+
+#Density Plot
+yes_tasting %>%
+  select(coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference) %>%
+  mutate(across(1:3, as.numeric)) %>%
+  pivot_longer(cols = starts_with('coffee'), names_to = 'Characteristic', values_to = 'Rating') %>%
+  ggplot(aes(x = Rating)) +
+  geom_density(aes(Rating, color = Characteristic), binwidth = 1, adjust = 4)
+```
+```{r}
+
+#C Word Cloud 
+yes_tasting$coffee_c_notes = gsub("\\p{P}",'',yes_tasting$coffee_c_notes, perl = TRUE)
+yes_tasting$coffee_c_notes = tolower(yes_tasting$coffee_c_notes)
+
+
+head(yes_tasting,100) %>%
+  select(submission_id, coffee_c_notes) %>%
+  filter(!is.na(coffee_c_notes)) %>%
+  separate_wider_delim(col = coffee_c_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  count(words, name = 'count') %>%
+  filter(words %in% c("a", "i", "b", "c", "but") == FALSE) %>%
+  ggplot(aes(label = words, size = count, color = count)) +
+  geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+  scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+  theme_minimal() +
+  scale_color_gradient(low = "chocolate", high = "chocolate4")
+```
+
+
+```{r}
+#COFFEE D
+
+#Dot Plot
+yes_tasting %>%
+  select(coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference, coffee_d_notes) %>%
+  ggplot(aes(coffee_d_acidity,coffee_d_bitterness)) +
+  geom_count() +
+  labs(x = "Acidity", y = "Bitterness", title = "Coffee D Metrics")
+
+#Contour Plot
+yes_tasting %>%
+  select(coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference, coffee_d_notes) %>%
+  ggplot(aes(coffee_d_acidity,coffee_d_bitterness)) +
+  geom_contour_filled(aes(z = coffee_d_personal_preference)) +
+  labs(x = "Acidity", y = "Bitterness", z = "Preference Rating", title = "Coffee D Metrics")
+
+yes_tasting %>%
+  select(coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference, coffee_d_notes) %>%
+  ggplot(aes(coffee_d_acidity,coffee_d_bitterness)) + 
+  geom_density_2d() + 
+  geom_point()
+
+#Density Plot
+yes_tasting %>%
+  select(coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference) %>%
+  mutate(across(1:3, as.numeric)) %>%
+  pivot_longer(cols = starts_with('coffee'), names_to = 'Characteristic', values_to = 'Rating') %>%
+  ggplot(aes(x = Rating)) +
+  geom_density(aes(Rating, color = Characteristic), binwidth = 1, adjust = 4)
+```
+```{r}
+yes_tasting$coffee_d_notes = gsub("\\p{P}",'',yes_tasting$coffee_d_notes, perl = TRUE)
+yes_tasting$coffee_d_notes = tolower(yes_tasting$coffee_d_notes)
+
+
+head(yes_tasting,100) %>%
+  select(submission_id, coffee_d_notes) %>%
+  filter(!is.na(coffee_d_notes)) %>%
+  separate_wider_delim(col = coffee_d_notes, delim = " ",
+                       names = c("var1", "var2", "var3", "var4", "var5", "var6", "var7", "var8", "var9", "var10", "var11", "var12", "var13", "var14", "var15", "var16"),  
+                       too_many = "debug",
+                       too_few = "debug") %>%
+  pivot_longer(cols = starts_with('var'),
+               names_to = 'place',
+               values_to = 'words', 
+               values_drop_na = TRUE) %>%
+  mutate(words = str_trim(words)) %>%
+  count(words, name = 'count') %>%
+  filter(words %in% c("a", "and", "i", "4", "3rd", "but", "it", "b") == FALSE) %>%
+  ggplot(aes(label = words, size = count, color = count)) +
+  geom_text_wordcloud_area(rm_outside = TRUE, eccentricity = 1) +
+  scale_size_area(max_size = 50, trans = power_trans(1/.7)) +
+  theme_minimal() +
+  scale_color_gradient(low = "darkorange2", high = "darkorange")
+```
+```{r}
+#Facets
+
+#Define Master Metrics
+metrics = rbind(
+yes_tasting %>%
+  select(submission_id, coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference) %>%
+  rename(acidity = coffee_a_acidity, bitterness = coffee_a_bitterness, personal = coffee_a_personal_preference ) %>%
+  mutate(type = 'A'),
+yes_tasting %>%
+  select(submission_id, coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference) %>%
+  rename(acidity = coffee_b_acidity, bitterness = coffee_b_bitterness, personal = coffee_b_personal_preference ) %>%
+  mutate(type = 'B'),
+yes_tasting %>%
+  select(submission_id, coffee_c_acidity, coffee_c_bitterness, coffee_c_personal_preference) %>%
+  rename(acidity = coffee_c_acidity, bitterness = coffee_c_bitterness, personal = coffee_c_personal_preference ) %>%
+  mutate(type = 'C'),
+yes_tasting %>%
+  select(submission_id, coffee_d_acidity, coffee_d_bitterness, coffee_d_personal_preference) %>%
+  rename(acidity = coffee_d_acidity, bitterness = coffee_d_bitterness, personal = coffee_d_personal_preference ) %>%
+  mutate(type = 'D'), deparse.level = 1
+) %>%
+  mutate(type = as.factor(type))
+
+#Count Plot
+metrics %>%
+  ggplot(aes(x = acidity)) +
+  geom_count(aes(x = acidity, y = bitterness)) +
+  facet_wrap(. ~ type) +
+  labs(x = "Acidity", y = "Bitterness", title = "Bitterness v Acidity")
+
+# 2D Density
+metrics %>%
+  ggplot(aes(x = acidity, y = bitterness)) +
+  geom_density_2d() + 
+  geom_point() +
+  facet_wrap(. ~ type)
+
+#Countour Plot
+metrics %>%
+  ggplot(aes(x = acidity, y = bitterness)) +
+  geom_contour_filled(aes(z = personal)) +
+  facet_wrap(. ~ type) +
+  labs(x = "Acidity", y = "Bitterness", z = "Preference Rating", title = "Bitterness, Acidity, Preference")
+
+#Density Plot
+metrics %>%
+  ggplot(aes(x = personal)) +
+  geom_density(aes(personal, color = 'personal'), binwidth = 1, adjust = 4) +
+  geom_density(aes(acidity, color = 'acidity'), binwidth = 1, adjust = 4) +
+  geom_density(aes(bitterness,color = 'bitterness'), binwidth = 1, adjust = 4) +
+  facet_wrap(. ~ type)
+
+metrics
+```
+
+
+
+
+```{r}
+#Preference
+yes_tasting %>%
+  ggplot(aes(prefer_abc)) +
+  geom_bar() +
+  labs(x = "Peferred Type", y = "Number of Respondents", title = "Preference: A vs. B vs. C", )
+```
+
+```{r}
+preferences = yes_tasting %>%
+  select(coffee_a_personal_preference, coffee_b_personal_preference, 
+         coffee_c_personal_preference, coffee_d_personal_preference) %>%
+  rename('Coffee A' = coffee_a_personal_preference, 'Coffee B' = coffee_b_personal_preference,
+         'Coffee C' = coffee_c_personal_preference, 'Coffee D' = coffee_d_personal_preference) %>%
+  pivot_longer(cols = starts_with('Coffee'), 
+               names_to = 'CoffeeType', 
+               values_to = 'PreferenceRating') 
+
+preferences$CoffeeType = as.factor(preferences$CoffeeType)
+preferences$PreferenceRating = preferences$PreferenceRating*1.0
+
+preferences %>%
+  filter(!is.na(preferences$PreferenceRating)) %>%
+  group_by(CoffeeType) %>%
+  summarise(mean(PreferenceRating), n()) 
+
+preferences %>%
+  filter(!is.na(preferences$PreferenceRating)) %>%
+  ggplot(aes(x=CoffeeType, y=PreferenceRating, color = CoffeeType)) +
+  geom_violin( bw = .4) + stat_summary(fun.y=mean, geom="point", shape=23, size=2, color = 'brown') +
+  geom_boxplot(aes(middle = mean(PreferenceRating)), width = .08) +
+  geom_boxplot(fatten = NULL, width = .08) +
+  stat_summary(fun.y = mean, geom = "errorbar", aes(ymax = ..y.., ymin = ..y..),
+               width = 0.08, size = 1, linetype = "solid") +
+  labs(title = "Preference Rating Distribution")
+
+```
+
+```{r}
+# Testing if there is difference between B and C 2 Sample T Test and F Test
+
+#Except NULL for F Test, variances are similiar
+var.test(coffee_dropped$coffee_b_personal_preference, coffee_dropped$coffee_c_personal_preference, alternative = "two.sided")[3] #p = 0.4149961
+
+#Except NULL for T Test, no difference between means
+t.test(coffee_dropped$coffee_b_personal_preference, coffee_dropped$coffee_c_personal_preference, alternative = "two.sided")[3] #p = 0.8813144
+
+#ALL other comparisons failed the F Test
+var.test(coffee_dropped$coffee_d_personal_preference, coffee_dropped$coffee_a_personal_preference, alternative = "two.sided")[3] 
+
+#All other comparisons reject NULL for T Test
+t.test(coffee_dropped$coffee_d_personal_preference, coffee_dropped$coffee_a_personal_preference, alternative = "two.sided")[3] 
+
+```
+
+```{r}
+
+```
+
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
