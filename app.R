@@ -24,6 +24,7 @@ coffee_cleaning = read.csv('coffee_cleaning.csv')
 coffee_cleaning$'no detail' = 1
 master_word_cloud = read.csv('master_word_cloud.csv')
 
+
 results = coffee_cleaning %>% 
   pivot_longer(cols = c(coffee_a_acidity, coffee_a_bitterness, coffee_a_personal_preference,
                         coffee_b_acidity, coffee_b_bitterness, coffee_b_personal_preference,
@@ -42,12 +43,13 @@ results = coffee_cleaning %>%
 # Define UI for application that draws a histogram
 ui <- navbarPage(
   theme = bs_theme(
-    bg = 'white',
+    bg = '#F6F6E9',
     #bg = "#EDE7DD",
-    fg = "#5E17EB",
-    primary = "#AAF386",
+    fg = "#DC661F",
+    primary = "#1D7151",
     secondary = '#ABFF78',
-    heading_font = font_google("Lilita One"),
+    heading_font = font_google("Allan"),
+    #heading_font = font_google("Lilita One"),
     #heading_font = font_google("Tex Gyre Bonum"),
     base_font = font_google("Urbanist"),
     code_font = font_google("Urbanist")
@@ -59,29 +61,27 @@ ui <- navbarPage(
 tabPanel("The Great Coffee Tasting ",
          fluidPage(
            style = "padding-bottom: 20px;padding-left: 20px;",
-           HTML("<h1><div style='font-size: 64px;'>Cometeer's Great Coffee Tasting.
-                       </div><div style='font-size: 96px;'><i>THE RESULTS!!<br></i></div></h1>"),
+           #HTML("<h1><div style='font-size: 64px;'>Cometeer's<br></div><div style='font-size: 140px;'>The Great <br>American <br>Coffee Taste Test (results).
+                       #</div><div style='font-size: 96px;'><i>RESULTS!<br></i></div></h1>"),
            
-           fluidRow(column(1,
-                           
+           fluidRow(column(5,
+                           HTML("<h1><div style='font-size: 64px;'>Cometeer's<br></div><div style='font-size: 130px;'>The Great <br>American <br>Coffee Taste Test *results*
+                       </div></h1>"),
            ),
-                    column(8,
+                    #column(8,
                   #HTML("<h1><i><div style='font-size:64px;'>Come on in, the coffee's great!</div></i></h1><br>"),
-           ),
-                    column(8,
-                  includeMarkdown("The_txt.txt"), offset = 2
-           ),
-                    column(3,
-                  includeMarkdown("Second paragraph.txt"), offset = 2
-           ),
-                    column(3,
-                  HTML('<iframe width="560" height="315" src="https://www.youtube.com/embed/U489K2t_Tgc?si=plwUlQnFfnoOGXZc" 
+           #),
+                    column(5,
+                           HTML("<br><br>"),
+                  includeMarkdown("The_txt.txt"), 
+                  HTML('<iframe width="400" height="200" src="https://www.youtube.com/embed/U489K2t_Tgc?si=plwUlQnFfnoOGXZc" 
                                   title="YouTube video player" frameborder="0" allow="accelerometer; 
                                   autoplay; clipboard-write; encrypted-media; gyroscope; 
                                   picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" 
-                                  allowfullscreen></iframe>')
-                  
-           )
+                                  allowfullscreen></iframe>'),
+                  includeMarkdown("Second paragraph.txt"),
+                  offset = 1
+           ),
            
            )
          )
@@ -415,10 +415,11 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold")
       )
     
     
@@ -459,14 +460,13 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
-      ) +
-      theme(legend.position = "bottom")
-    
-    
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
+        legend.position = "bottom")
+ 
   })
   
   output$results_plotA1 <- renderPlot({
@@ -503,12 +503,12 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
-      ) +
-      theme(legend.position = "bottom")
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
+        legend.position = "bottom")
     
     
   })
@@ -526,11 +526,12 @@ server <- function(input, output, session) {
       theme_minimal() +
       scale_color_gradient(low = "darkred", high = "red") +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
-      )
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
+        )
     
   })
   
@@ -559,11 +560,12 @@ server <- function(input, output, session) {
         )
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
-      )
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold")
+        )
     
   })
   
@@ -591,11 +593,12 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
-      )
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
+  )
   })
   
   output$ad <- renderPlot({
@@ -621,10 +624,11 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
       )
   })
   
@@ -651,10 +655,11 @@ server <- function(input, output, session) {
         color = "black"
       ) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
       )
   })
   
@@ -694,10 +699,11 @@ server <- function(input, output, session) {
       scale_fill_viridis_c() +
       guides(x = guide_axis(n.dodge = 1, angle = 320)) +
       theme(
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_text(size = 12),
-        axis.title.x = element_text(size = 14, face = 'bold'),
-        axis.title.y = element_text(size = 14, face = 'bold')
+        axis.text.x = element_text(size = 14,face = 'bold'),
+        axis.text.y = element_text(size = 14),
+        axis.title.x = element_text(size = 16, face = 'bold'),
+        axis.title.y = element_text(size = 16, face = 'bold'),
+        legend.text = element_text(face = "bold"),
       ) +
       theme(legend.position = "bottom")
     

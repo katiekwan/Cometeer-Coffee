@@ -13,6 +13,7 @@ library(ggplot2)
 library(ggwordcloud)
 library(stringr)
 library(scales)
+library(forcats)
 
 ```
 
@@ -63,7 +64,7 @@ coffee_cleaning$gender = as.factor(coffee_cleaning$gender)
 coffee_cleaning$education_level = as.factor(coffee_cleaning$education_level)
 coffee_cleaning$ethnicity_race = as.factor(coffee_cleaning$ethnicity_race)
 coffee_cleaning$number_children = as.factor(coffee_cleaning$number_children)
-
+coffee_cleaning$age
 
 # Feature Engineering, Home and Additions
 coffee_cleaning = coffee_cleaning %>% mutate(cafe = if_else(str_detect(where_drink, "cafe"), "Cafe", "No"),
@@ -93,11 +94,27 @@ coffee_cleaning = coffee_cleaning %>% mutate(coffee_black = if_else(str_detect(a
 #Capitalize column names
 #coffee_cleaning <- coffee_cleaning %>% rename_with(~ str_to_title(.))
 #coffee_cleaning
-coffee_cleaning
+coffee_cleaning$age = factor(coffee_cleaning$age, levels = c('<18 years old','18-24 years old',
+                                                             '25-34 years old','35-44 years old',
+                                                             '45-54 years old','55-64 years old',
+                                                             '>65 years old'))
+
+coffee_cleaning$cups = factor(coffee_cleaning$cups, levels = c('Less than 1',1,2,3,4,'More than 4','NA\'s'))
+coffee_cleaning$cups
+
+plot(coffee_cleaning$age)
+
+coffee_cleaning = coffee_cleaning %>%
+  mutate(age = fct_recode(age, '65+' = '>65 years old'))
+coffee_cleaning = coffee_cleaning %>%
+  mutate(cups = fct_recode(cups, '<1' = 'Less than 1', '4+' = 'More than 4'))
+coffee_cleaning$total_spend
+coffee_cleaning = coffee_cleaning %>%
+  mutate(total_spend = fct_recode(total_spend, 'o$100+' = '>$100'))
 
 write.csv(coffee_cleaning, "coffee_cleaning.csv", row.names = FALSE)
-```
 
+``` 
 
 ```{r} 
 
@@ -145,7 +162,7 @@ coffee_cleaning %>%
             axis.text.y = element_text(size = 12),
             axis.title.x = element_text(size = 14, face = 'bold'),
             axis.title.y = element_text(size = 14, face = 'bold'))
-```
+``` 
 
 ```{r}
 # SIMPLE FOR TESTING NOT DEPLOYED
@@ -244,7 +261,7 @@ coffee_cleaning %>%
   filter(words %in% c("as","a", "i", "4", "3rd", "bit", "and", "it", "b", "<ul>", "&","-") == FALSE) %>%
   mutate(Type = 'A'),
 
-#B Word Clooud
+#B Word Cloud
 coffee_cleaning %>%
   select(submission_id, coffee_b_notes) %>%
   filter(!is.na(coffee_b_notes)) %>%
@@ -308,7 +325,7 @@ coffee_cleaning %>%
   mutate(Type = 'D')
 )
 
-write.csv(master_word_cloud, "master_word_cloud.csv", row.names = FALSE)
+write.csv(master_word_cloud, "master_word_cloud.e"vyKatKwasdf/flksdjfslkdjfldkjfgsdasdsdfdf, row.names = FALSE)
 
 master_word_cloud %>%
       filter(Type == 'B') %>%
