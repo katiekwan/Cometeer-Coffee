@@ -1,6 +1,6 @@
 # Cometeer's The Great American Coffee Tasting Analysis
 
-[Shiny App LIl](https://katiekwan.shinyapps.io/cometeer-coffee/)
+[Shiny App Link](https://katiekwan.shinyapps.io/cometeer-coffee/)
 
 This app was developed ot analyze the results of [Cometeer's](https://cometeer.com) [Great American Coffee Tasting](https://cometeer.com/pages/the-great-american-coffee-taste-test) on Saturday Ocrtober, 21st 2023. 
 
